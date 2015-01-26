@@ -140,6 +140,33 @@ function! s:do_external_parse(lines)
   return split(s:system(cmd . ' ' . s:escape_backslash(temp)), "\n")
 endfunction
 
+function! s:parse_yaml_format_matter(lines)
+  if get(g:, 'previm_parse_yaml_format_matter', 0) !=# 1 || &filetype ==# "rst"
+    return a:lines
+  endif
+  if len(a:lines) > 2 && a:lines[0] ==# '---'
+    let i = 1
+    for line in a:lines[1:]
+      if line ==# '---'
+        " convert key:value between --- and --- to gfm table
+        let pairs = filter(a:lines[1:i-1], 'match(v:val, "^\\w\\+:") !=# -1')
+        let keys = map(copy(pairs), 'v:val[:stridx(v:val, ":")-1]')
+        " escape vertical bar inside value
+        let values = map(copy(pairs),
+            \ 'substitute(v:val[stridx(v:val, ":")+1:], "|", "\\&#124;", "g")')
+        let table = [
+            \ join(keys, '|'),
+            \ join(map(range(len(pairs)), '"--"'), '|'),
+            \ join(values, '|')
+            \ ]
+        return table + a:lines[i+1:]
+      endif
+      let i += 1
+    endfor
+  endif
+  return a:lines
+endfunction
+
 function! previm#convert_to_content(lines)
   let mkd_dir = s:escape_backslash(expand('%:p:h'))
   if has("win32unix")
@@ -148,7 +175,7 @@ function! previm#convert_to_content(lines)
   endif
   let converted_lines = []
   " TODO リストじゃなくて普通に文字列連結にする(テスト書く)
-  for line in s:do_external_parse(a:lines)
+  for line in s:do_external_parse(s:parse_yaml_format_matter(a:lines))
     let escaped = substitute(line, '\', '\\\\', 'g')
     let escaped = substitute(escaped, '"', '\\"', 'g')
     let escaped = previm#relative_to_absolute_imgpath(escaped, mkd_dir)
