@@ -154,11 +154,8 @@ function! s:parse_yaml_format_matter(lines)
         " escape vertical bar inside value
         let values = map(copy(pairs),
             \ 'substitute(v:val[stridx(v:val, ":")+1:], "|", "\\&#124;", "g")')
-        let table = [
-            \ join(keys, '|'),
-            \ join(map(range(len(pairs)), '"--"'), '|'),
-            \ join(values, '|')
-            \ ]
+        let table = map([keys, repeat(['--'], len(pairs)), values],
+            \ 'join(v:val, "|")')
         return table + a:lines[i+1:]
       endif
       let i += 1
